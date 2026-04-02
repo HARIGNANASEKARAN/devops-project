@@ -1,0 +1,124 @@
+############################################
+# 1️⃣ Local Development (Python App)
+############################################
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the app locally
+python app.py
+
+# Verify app on browser: http://localhost:5000
+
+############################################
+# 2️⃣ Docker
+############################################
+
+# Build Docker image
+docker build -t devops-project .
+
+# Run Docker container locally
+docker run -p 5000:5000 devops-project
+
+############################################
+# 3️⃣ Docker Compose (Optional Multi-Service)
+############################################
+
+# Start services in detached mode
+docker-compose up -d
+
+# List running containers
+docker ps
+
+# Stop services
+docker-compose down
+
+############################################
+# 4️⃣ Kubernetes (Minikube)
+############################################
+
+# Start Minikube cluster
+minikube start
+
+# Check cluster nodes
+kubectl get nodes
+
+# Load local Docker image into Minikube
+minikube image load devops-project
+
+# Apply deployment and service configs
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+
+# Verify pods and services
+kubectl get pods
+kubectl get services
+
+# Access app via Minikube
+minikube service devops-service
+
+# Scale deployment manually (optional)
+kubectl scale deployment devops-app --replicas=4
+kubectl get pods
+
+############################################
+# 5️⃣ Metrics & Monitoring (Prometheus + Grafana)
+############################################
+
+# Add Prometheus Helm repo
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+# Install monitoring stack
+helm install monitoring prometheus-community/kube-prometheus-stack
+
+# Check monitoring pods
+kubectl get pods
+
+# Port-forward Grafana to local machine
+kubectl port-forward svc/monitoring-grafana 3000:80
+
+# Get Grafana admin password
+kubectl get secret monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 --decode
+
+# Load testing to generate traffic
+kubectl run -i --tty load-generator --image=busybox -- /bin/sh
+# Inside container:
+while true; do wget -q -O- http://devops-service:5000; done
+
+############################################
+# 6️⃣ Horizontal Pod Autoscaler (HPA)
+############################################
+
+# Apply HPA (scale based on CPU)
+kubectl autoscale deployment devops-app --cpu-percent=50 --min=2 --max=5
+
+# Watch pods scale dynamically
+kubectl get pods -w
+
+# Install metrics server if not present
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+kubectl get pods -n kube-system | grep metrics-server
+
+############################################
+# 7️⃣ CI/CD Pipeline (GitHub Actions)
+############################################
+
+# Add and commit workflow files
+git add .
+git commit -m "Add CI/CD pipeline"
+git push
+
+############################################
+# 8️⃣ Optional / Future Upgrades
+############################################
+
+# Docker Hub integration
+docker login
+docker tag devops-project <your-dockerhub-username>/devops-project
+docker push <your-dockerhub-username>/devops-project
+
+# Terraform infra automation
+terraform init
+terraform plan
+terraform apply
