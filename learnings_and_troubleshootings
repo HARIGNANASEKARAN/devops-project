@@ -1,0 +1,343 @@
+#!/bin/bash
+# ============================================================
+# DevOps Troubleshooting & Learning Notes (Bash Version)
+# ============================================================
+# Author: Notes from ChatGPT session
+# Scope: Windows/Linux PowerShell/Bash DevOps issues
+# ============================================================
+
+# -------------------------------
+# 1. Minikube service blocks terminal
+# -------------------------------
+# Issue:
+# Using Docker driver on Windows, terminal gets stuck
+# Resolution:
+# Stop with Ctrl+C or use port-forward
+kubectl port-forward service/devops-service 5000:5000
+# Then access in browser: http://localhost:5000
+
+# -------------------------------
+# 2. Chocolatey install failed / partially installed
+# -------------------------------
+# Issue:
+# Chocolatey installer detects previous installation
+# Access denied on temp files
+# Resolution:
+# Remove temp folder (Git Bash/WSL)
+rm -rf /c/Users/dhaar/AppData/Local/Temp/chocolatey
+# Restart system if needed
+# Reinstall Chocolatey in Admin PowerShell
+
+# -------------------------------
+# 3. PowerShell execution policy confusion
+# -------------------------------
+# Check policy:
+# Windows-only
+# Get-ExecutionPolicy -List
+# Temporary bypass (current session only)
+# Set-ExecutionPolicy Bypass -Scope Process
+
+# -------------------------------
+# 4. PATH not updated after installing tools
+# -------------------------------
+# Issue:
+# Helm or Scoop not recognized after installation
+# Resolution:
+export PATH="$PATH:$HOME/scoop/shims"
+# Verify:
+which helm
+which scoop
+
+# -------------------------------
+# 5. base64 not recognized in PowerShell
+# -------------------------------
+# Linux/Bash:
+echo "cGFzc3dvcmQ=" | base64 --decode
+# Windows PowerShell alternative:
+# [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("cGFzc3dvcmQ="))
+
+# -------------------------------
+# 6. Scoop installation issues (7-Zip, coreutils)
+# -------------------------------
+# Issue:
+# URL invalid / network timeout
+# 7-Zip dependency fails → coreutils cannot install
+# Resolution:
+scoop bucket rm main
+scoop bucket add main
+# Optional manual install:
+# 1. Download 7-Zip manually
+# 2. Install coreutils: scoop install coreutils
+
+# -------------------------------
+# 7. Scoop bucket confusion
+# -------------------------------
+# Issue:
+# 'main' bucket errors: "isn't installed" or "already exists"
+# Explanation:
+# Buckets are repositories, not packages
+scoop bucket list          # list all buckets
+scoop bucket add main      # add bucket if missing
+scoop bucket rm main       # remove bucket if needed
+
+# -------------------------------
+# 8. coreutils installed but base64 still not found
+# -------------------------------
+# Issue:
+# Windows shims not loaded properly
+# Resolution:
+ls $HOME/scoop/apps/coreutils/current/bin
+# Add to PATH manually:
+export PATH="$PATH:$HOME/scoop/apps/coreutils/current/bin"
+
+# -------------------------------
+# 9. refreshenv not recognized
+# -------------------------------
+# Cause:
+# Only available from Chocolatey, not Scoop
+# Windows-only
+
+# -------------------------------
+# 10. Kubernetes Grafana password decoding
+# -------------------------------
+# Linux/Bash:
+kubectl get secret monitoring-grafana \
+  -o jsonpath="{.data.admin-password}" | base64 --decode
+# Copy to clipboard (Linux):
+kubectl get secret monitoring-grafana \
+  -o jsonpath="{.data.admin-password}" | base64 --decode | xclip -selection clipboard
+
+# Windows PowerShell equivalent:
+# [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String(
+#    (kubectl get secret monitoring-grafana -o jsonpath="{.data.admin-password}")
+# ))
+
+# -------------------------------
+# 11. Scoop coreutils / Linux-like commands
+# -------------------------------
+# Installed coreutils includes commands like:
+# true, uname, uniq, wc
+# On Windows, may need to call via:
+# $HOME/scoop/apps/coreutils/current/bin/base64.exe
+# Or add to PATH for shorthand usage
+
+# -------------------------------
+# 12. Key lessons / best practices
+# -------------------------------
+# - Windows is not Linux → use native tools when possible
+# - PATH issues are the most common cause of "command not recognized"
+# - Scoop can fail due to network or dependency issues (7-Zip)
+# - Prefer PowerShell native commands on Windows
+# - Use Bash native commands on Linux
+# - Buckets vs packages in Scoop: Buckets = repos, Packages = software
+# - Use kubectl + PowerShell/Bash directly for tasks like decoding secrets
+
+# -------------------------------
+# 13. Optional helper: decode Grafana password (Bash one-liner)
+# -------------------------------
+# kubectl get secret monitoring-grafana \
+#   -o jsonpath="{.data.admin-password}" | base64 --decode
+
+# ============================================================
+# End of Notes
+# ============================================================
+
+#!/bin/bash
+# ===============================================
+# DevOps Practice - Learning Notes & Commands
+# ===============================================
+
+# ----------------------------
+# 1️⃣ Docker Basics & Errors
+# ----------------------------
+
+# Check Docker version
+docker --version
+
+# Build Docker image
+# ❌ Common Error: no build stage
+docker build -t devops-project .
+
+# Dockerfile example
+cat <<'EOF' > Dockerfile
+FROM python:3.9
+
+WORKDIR /app
+COPY . .
+RUN pip install -r requirements.txt
+CMD ["python", "app.py"]
+EOF
+
+# Check running containers
+docker ps
+
+# Stop/remove conflicting containers
+# ❌ Error: port already allocated
+docker stop <container_id>
+docker rm <container_id>
+
+# Run container
+docker run -p 5000:5000 devops-project
+
+# ----------------------------
+# 2️⃣ Python & Dependencies
+# ----------------------------
+
+# Add dependencies to requirements.txt
+echo -e "Flask\npsycopg2-binary" > requirements.txt
+
+# Rebuild Docker image if dependencies added
+docker build -t devops-project .
+
+# Test inside container
+docker exec -it devops-project-web-1 bash
+# python
+# >>> import psycopg2
+# >>> conn = psycopg2.connect("postgres://postgres:password@db:5432/devopsdb")
+# >>> cur = conn.cursor()
+# >>> cur.execute("SELECT 1;")
+# >>> print(cur.fetchone())
+# >>> conn.close()
+
+# ----------------------------
+# 3️⃣ Docker Compose
+# ----------------------------
+
+# Compose YAML example (v3, no 'version' needed)
+cat <<'EOF' > docker-compose.yml
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgres://postgres:password@db:5432/devopsdb
+    depends_on:
+      - db
+
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: devopsdb
+EOF
+
+# Start services
+docker compose up -d
+
+# Stop services
+docker compose down
+
+# View logs
+docker compose logs -f web
+docker compose logs -f db
+
+# ----------------------------
+# 4️⃣ Kubernetes Basics
+# ----------------------------
+
+# Check Minikube status
+minikube status
+
+# Load Docker image into Minikube
+minikube image load devops-project
+
+# Example deployment.yaml
+cat <<'EOF' > deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devops-app
+  template:
+    metadata:
+      labels:
+        app: devops-app
+    spec:
+      containers:
+      - name: devops-container
+        image: devops-project
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5000
+EOF
+
+# Apply deployment
+kubectl apply -f deployment.yaml
+
+# Check pods
+kubectl get pods -w
+
+# Delete existing pod if error: AlreadyExists
+kubectl delete pod load-generator
+
+# Run test load generator
+kubectl run -i --tty load-generator --image=busybox -- /bin/sh
+# Inside pod: while true; do wget -q -O- http://devops-service:5000; done
+
+# ----------------------------
+# 5️⃣ Autoscaling (HPA)
+# ----------------------------
+
+# Enable Horizontal Pod Autoscaler
+kubectl autoscale deployment devops-app --cpu-percent=50 --min=2 --max=5
+
+# Watch HPA
+kubectl get hpa -w
+
+# Trigger CPU load to test scaling
+# while true; do wget -q -O- http://devops-service:5000; done
+
+# ----------------------------
+# 6️⃣ Services & Networking
+# ----------------------------
+
+# Expose service in Minikube
+kubectl expose deployment devops-app --type=NodePort --name=devops-service
+
+# Open service URL
+minikube service devops-service
+
+# Reminder: PostgreSQL (port 5432) is not HTTP
+# Use Flask API endpoints for browser:
+# http://localhost:5000/
+# http://localhost:5000/health
+
+# ----------------------------
+# 7️⃣ Tooling & Windows Notes
+# ----------------------------
+
+# Helm not found? Install via Scoop or Chocolatey
+# Scoop:
+# powershell -Command "iwr -useb get.scoop.sh | iex"
+# scoop install helm
+# Chocolatey:
+# Set-ExecutionPolicy Bypass -Scope Process -Force
+# iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+# choco install kubernetes-helm
+
+# Windows alternative to grep
+kubectl get pods -n kube-system | Select-String metrics-server
+
+# ----------------------------
+# 8️⃣ Git & SSH
+# ----------------------------
+# ❌ Permission denied (publickey)
+# Fix: Use HTTPS instead of SSH
+# git remote set-url origin https://github.com/<username>/<repo>.git
+
+# ----------------------------
+# ✅ Summary Checks
+# ----------------------------
+docker ps
+docker compose ps
+kubectl get pods
+kubectl get hpa
+kubectl logs <pod_name>
+
+echo "All DevOps learning notes & common errors collected!"

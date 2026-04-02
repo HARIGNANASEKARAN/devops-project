@@ -1,0 +1,224 @@
+#!/bin/bash
+# =========================================
+# DevOps Practice - Error Notes & Fixes
+# =========================================
+
+# 1️⃣ Docker Build Errors
+# ----------------------
+# ❌ Error: no build stage
+# Fix: Ensure Dockerfile has a FROM statement
+cat <<'EOF' > Dockerfile
+FROM python:3.9
+WORKDIR /app
+COPY . .
+RUN pip install -r requirements.txt
+CMD ["python", "app.py"]
+EOF
+
+# ❌ Error: port is already allocated
+# Fix: Stop conflicting container
+docker ps
+# docker stop <container_id>
+# docker rm <container_id>
+
+# 2️⃣ Git Errors
+# ---------------
+# ❌ Permission denied (publickey)
+# Fix: Use HTTPS instead of SSH
+# git remote set-url origin https://github.com/<username>/<repo>.git
+
+# 3️⃣ Python inside Docker
+# ------------------------
+# ❌ ModuleNotFoundError: No module named 'psycopg2'
+# Fix: Add to requirements.txt and rebuild
+echo -e "Flask\npsycopg2-binary" > requirements.txt
+docker compose build
+
+# Correct way to enter container Python shell
+docker exec -it <container_name> bash
+# Inside container:
+# python
+# >>> import psycopg2
+# >>> conn = psycopg2.connect("postgres://postgres:password@db:5432/devopsdb")
+# >>> cur = conn.cursor()
+# >>> cur.execute("SELECT 1;")
+# >>> print(cur.fetchone())
+# >>> conn.close()
+
+# 4️⃣ Docker Compose warnings
+# ---------------------------
+# ⚠️ version is obsolete
+# Fix: Remove 'version: "3.8"' from docker-compose.yml
+
+# 5️⃣ Kubernetes Errors
+# ---------------------
+# ❌ apiVersion not set
+# Fix: Ensure correct yaml key
+cat <<'EOF' > deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devops-app
+  template:
+    metadata:
+      labels:
+        app: devops-app
+    spec:
+      containers:
+      - name: devops-container
+        image: devops-project
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5000
+EOF
+
+kubectl apply -f deployment.yaml
+kubectl get pods -w
+
+# ❌ Pod already exists
+# Fix: delete existing pod
+kubectl delete pod load-generator
+
+# 6️⃣ Networking & Browser
+# ------------------------
+# PostgreSQL is not HTTP, cannot open localhost:5432 in browser
+# Use Flask API for HTTP requests:
+# http://localhost:5000/health
+
+# 7️⃣ HPA (Autoscaling)
+# ---------------------
+# Set autoscale
+kubectl autoscale deployment devops-app --cpu-percent=50 --min=2 --max=5
+# Verify HPA
+kubectl get hpa -w
+# Trigger load to scale
+# while true; do wget -q -O- http://devops-service:5000; done
+
+# 8️⃣ Tools
+# ----------
+# Install Helm on Windows via Scoop
+# powershell -Command "iwr -useb get.scoop.sh | iex"
+# scoop install helm
+
+# Windows alternatives for grep
+# kubectl get pods -n kube-system | Select-String metrics-server
+
+# 9️⃣ Summary Checks
+docker ps
+kubectl get pods
+kubectl get hpa
+docker logs <container>
+kubectl logs <pod>
+
+echo "✅ All common DevOps errors & fixes are included!"
+
+#!/bin/bash
+# ==============================================
+# DevOps Troubleshooting Notes (Bash/Linux-style)
+# ==============================================
+
+# -------------------------------
+# 1. Minikube service blocks terminal
+# -------------------------------
+# Problem: Minikube Docker driver keeps terminal busy
+# Solution:
+# Stop with Ctrl+C, or use port-forward:
+kubectl port-forward service/devops-service 5000:5000
+# Then open browser manually: http://localhost:5000
+
+# -------------------------------
+# 2. Chocolatey install failed / temp folder locked
+# -------------------------------
+# Problem: Chocolatey partially installed, cannot use 'choco'
+# Solution:
+# Remove temp folder in Windows (via Git Bash or WSL):
+rm -rf /c/Users/dhaar/AppData/Local/Temp/chocolatey
+# Restart system if still locked
+# Then reinstall Chocolatey using Admin PowerShell
+
+# -------------------------------
+# 3. Execution policy
+# -------------------------------
+# PowerShell (Windows) specific:
+# Temporary bypass for script execution:
+# Set-ExecutionPolicy Bypass -Scope Process
+# Check current policy:
+# Get-ExecutionPolicy -List
+
+# -------------------------------
+# 4. PATH not updated after installing tools
+# -------------------------------
+# If helm or scoop not recognized:
+export PATH="$PATH:$HOME/scoop/shims"
+# Verify:
+which scoop
+which helm
+
+# -------------------------------
+# 5. base64 not recognized
+# -------------------------------
+# Use native Linux/Unix base64 command:
+echo "cGFzc3dvcmQ=" | base64 --decode
+
+# -------------------------------
+# 6. Scoop install issues (7-Zip)
+# -------------------------------
+# Reset main bucket if installation fails:
+scoop bucket rm main
+scoop bucket add main
+
+# Optionally install 7-Zip manually if scoop fails:
+# https://www.7-zip.org/download.html
+
+# -------------------------------
+# 7. Scoop bucket confusion
+# -------------------------------
+# 'main' bucket is a repository, not a package:
+scoop bucket list        # list all buckets
+scoop bucket add main    # add bucket if missing
+
+# -------------------------------
+# 8. coreutils installed but base64 not found
+# -------------------------------
+# Check actual installation path:
+ls $HOME/scoop/apps/coreutils/current/bin
+# Add to PATH if needed:
+export PATH="$PATH:$HOME/scoop/apps/coreutils/current/bin"
+
+# -------------------------------
+# 9. refreshenv not recognized
+# -------------------------------
+# Only available in Chocolatey, not Scoop
+
+# -------------------------------
+# 10. Kubernetes Grafana password decoding
+# -------------------------------
+# Bash/Linux equivalent:
+kubectl get secret monitoring-grafana \
+  -o jsonpath="{.data.admin-password}" | base64 --decode
+# Copy to clipboard (Linux/macOS):
+kubectl get secret monitoring-grafana \
+  -o jsonpath="{.data.admin-password}" | base64 --decode | xclip -selection clipboard
+
+# -------------------------------
+# 11. Alternative (native PowerShell equivalent)
+# -------------------------------
+# Windows only (no gbase64 needed):
+# [System.Text.Encoding]::UTF8.GetString(
+#     [System.Convert]::FromBase64String(
+#         (kubectl get secret monitoring-grafana -o jsonpath="{.data.admin-password}")
+#     )
+# )
+
+# -------------------------------
+# 12. Best practices / key lessons
+# -------------------------------
+# - Prefer native commands over Linux emulation in Windows
+# - PATH issues are the most common problem
+# - Scoop can break due to dependencies
+# - PowerShell / Bash native tools are usually sufficient for DevOps tasks
