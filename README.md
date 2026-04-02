@@ -22,7 +22,9 @@ It showcases real-world DevOps and SRE practices including containerization, orc
 ## ⚙️ Architecture
 
 User → Kubernetes Service → Pods (Flask App)
+
           ↓
+
       Monitoring (Prometheus + Grafana)
 
 ---
@@ -156,6 +158,7 @@ kubectl autoscale deployment devops-app --cpu-percent=50 --min=2 --max=5
 ## 👨‍💻 Author
 
 Your Name: Hari R G
+
 GitHub: https://github.com/HARIGNANASEKARAN/devops-project
 
 ---
